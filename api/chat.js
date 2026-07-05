@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Sadece POST kabul edilir" });
   }
 
-  const { messages } = req.body;
+  const { messages, system } = req.body;
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
@@ -15,24 +15,35 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-5-mini",
-        messages,
-      }),
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: system || "Sen Alex AI adlı yardımcı bir yapay zekasın."
+          },
+          ...messages
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      })
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json(data);
+      return res.status(500).json(data);
     }
 
-    res.status(200).json({
-      text: data.choices?.[0]?.message?.content || "",
-    });
+    const text = data.choices?.[0]?.message?.content || "";
+
+    return res.status(200).json({ text });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      error: err.message
+    });
   }
 }
