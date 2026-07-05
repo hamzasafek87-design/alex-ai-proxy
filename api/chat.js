@@ -1,40 +1,38 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Sadece POST kabul edilir" });
-    return;
+    return res.status(405).json({ error: "Sadece POST kabul edilir" });
   }
 
-  const { messages, system } = req.body;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const { messages } = req.body;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    res.status(500).json({ error: "Sunucuda ANTHROPIC_API_KEY tanımlı değil" });
-    return;
+    return res.status(500).json({ error: "OPENAI_API_KEY tanımlı değil" });
   }
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        system,
+        model: "gpt-5-mini",
         messages,
       }),
     });
 
     const data = await response.json();
-    const text = (data.content || [])
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("\n");
 
-    res.status(200).json({ text });
-  } catch (e) {
-    res.status(500).json({ error: "AI isteği başarısız oldu" });
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+
+    res.status(200).json({
+      text: data.choices?.[0]?.message?.content || "",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 }
